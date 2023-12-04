@@ -9,16 +9,17 @@ app = Flask(__name__)
 api = FlightRadar24API()
 
 defaultAirlineICAO = "SAS"
-filePath = './data/exampleRoster.csv'
+# filePath = './data/roster.csv'
 
 # Developmentvariables
 devFlightNumber = "SK864"
+filePath = './data/exampleRoster.csv'
 
 
 
 def getTodaysDate() -> str:
     """
-    It returns todays date as DDMMMYYYY.
+    It returns todays date as DDBBBYYYY.
 
     Example: 04DEC2023
     """
@@ -32,7 +33,6 @@ def loadRoster() -> DataFrame:
     It loads the data from a csv file.
     The csv file must be in the 'data' folder and be named 'roster.csv'.
 
-
     It should be im the format: Day,Date,Activity,From,To
     """
     data: DataFrame = pandas.read_csv(filePath)
@@ -44,15 +44,30 @@ def loadRoster() -> DataFrame:
 
 
 
-def getTodaysFlightplan() -> list:
-    roster = loadRoster()
-    print(getTodaysDate())
-    # roster = roster.loc[roster['Date'] == getTodaysDate()]
-    roster = roster.loc[roster['Date'] == '04DEC2023']
-    print(roster)
-    return []
+def checkValidRoster(roster: DataFrame) -> bool:
+    """
+    It returns True if the roster is valid.
+    It returns False if the roster is invalid and/or contains old data.
+    """
 
-getTodaysFlightplan()
+    # Check if roster is empty
+    if(roster.empty):
+        print("Roster is empty.")
+        return False
+    
+    # Check if roster contains old data
+    if(datetime.datetime.strptime(roster['Date'].iloc[-1], "%d%b%Y").date() < datetime.datetime.now().date()):
+        print("Roster contains old data.")
+        return False
+
+    return True
+
+
+
+def getTodaysFlightplan() -> DataFrame:
+    roster = loadRoster()
+    roster = roster.loc[roster['Date'] == getTodaysDate()]
+    return roster
 
 
 
@@ -111,16 +126,52 @@ def getFlightDetails(flight: Flight | str) -> dict:
 
 
 
+def searchForActiveFlightFromFlightplan(flightplan: DataFrame) -> dict:
+    """
+    It returns a dictionary with the flight details.
+
+    flightplan: DataFrame - Example: getTodaysFlightplan()
+    """
+
+    if(flightplan.empty):
+        print("No flightplan was provided.")
+        return None
+
+    for index, row in flightplan.iterrows():
+        flight = searchLiveFlightByFlightNumber(row['Activity'])
+        if(flight != None):
+            return flight
+    return None
+
+
+
 ########## API ##########
 
+"""
+It returns a list of flights for Captain Olsen at the current date, if any.
+"""
+@app.route('/todaysFlightplan')
+def get_todays_flightplan():
+    flightplan = getTodaysFlightplan()
+    if(flightplan.empty):
+        return None
+    return flightplan.to_json(orient='records')
 
-# @app.route('/data')
-# def get_data():
-#     return "Hello World"
+
+
+@app.route('/getActiveFlight')
+def get_active_flight():
+    flightplan = getTodaysFlightplan()
+    flight = searchForActiveFlightFromFlightplan(flightplan)
+    if(flight == None):
+        return "No active flight found."
+    return flight
+
+
 
 
 
 ########## Server ##########
 
-# if __name__ == '__main__':
-#     app.run(port=5000)
+if __name__ == '__main__':
+    app.run(port=5000)
