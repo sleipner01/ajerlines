@@ -187,7 +187,7 @@ class Flightplan:
 class FlightSeeker: 
     def __init__(self, flightplan: Flightplan):
         self.flightplan = flightplan
-        self.activeFlight = None
+        self.activeFlight = pandas.DataFrame()
         
 
 
@@ -197,97 +197,26 @@ class FlightSeeker:
 
         flightplan: DataFrame - Example: getTodaysFlightplan()
         """
+        if(self.flightplan.empty):
+            print("No flightplan was provided.")
+            return None
+        
+        # Check if active flight is already found
+        if(self.activeFlight.empty == False):
+            flight = searchLiveFlightByFlightNumber(self.activeFlight['Activity'])
+            
+            # Check if flight is still active
+            if(flight != None):
+                return flight
+
+            self.activeFlight = pandas.DataFrame()
 
         for index, row in self.flightplan.iterrows():
             flight = searchLiveFlightByFlightNumber(row['Activity'])
             if(flight != None):
-                self.activeFlight = flight
+                self.activeFlight = row
                 return flight
         return None
-
-
-
-class FlightTracker:
-    def __init__(self, flightNumber: str):
-        self.flightNumber = flightNumber
-
-
-
-class Flight:
-    def __init__(self, flight: dict):
-        self.flight = flight
-
-    def getFlightNumber(self) -> str:
-        """
-        It returns the flight number.
-        """
-        return self.flight.get('identification').get('number').get('default')
-
-    def getDepartureAirport(self) -> str:
-        """
-        It returns the departure airport.
-        """
-        return self.flight.get('airport').get('origin').get('code').get('iata')
-
-    def getArrivalAirport(self) -> str:
-        """
-        It returns the arrival airport.
-        """
-        return self.flight.get('airport').get('destination').get('code').get('iata')
-
-    def getDepartureTime(self) -> str:
-        """
-        It returns the departure time.
-        """
-        return self.flight.get('time').get('scheduled').get('departure')
-
-    def getArrivalTime(self) -> str:
-        """
-        It returns the arrival time.
-        """
-        return self.flight.get('time').get('scheduled').get('arrival')
-
-    def getAircraftType(self) -> str:
-        """
-        It returns the aircraft type.
-        """
-        return self.flight.get('aircraft').get('model').get('code').get('iata')
-
-    def getAircraftRegistration(self) -> str:
-        """
-        It returns the aircraft registration.
-        """
-        return self.flight.get('aircraft').get('registration')
-
-    def getAircraftAge(self) -> int:
-        """
-        It returns the aircraft age.
-        """
-        return self.flight.get('aircraft').get('age')
-
-    def getAircraftAirline(self) -> str:
-        """
-        It returns the aircraft airline.
-        """
-        return self.flight.get('aircraft').get('airline').get('name')
-
-    def getAircraftAirlineICAO(self) -> str:
-        """
-        It returns the aircraft airline ICAO.
-        """
-        return self.flight.get('aircraft').get('airline').get('code').get('icao')
-
-    def getAircraftAirlineIATA(self) -> str:
-        """
-        It returns the aircraft airline IATA.
-        """
-        return self.flight.get('aircraft').get('airline').get('code').get('iata')
-
-    def getAircraftAirlineCallsign(self) -> str:
-        """
-        It returns the aircraft airline callsign.
-        """
-        return self.flight.get('aircraft').get('airline').get('callsign')
 
 
 
@@ -312,7 +241,7 @@ def has_valid_roster():
     It returns True if the roster is valid.
     It returns False if the roster is invalid and/or contains old data.
     """
-    return "True" if roster.checkValidRoster() else "False"
+    return jsonify("True") if roster.checkValidRoster() else jsonify("False")
 
 
 
@@ -325,6 +254,18 @@ def get_todays_flightplan():
 
 
 
+@app.route('/getActiveFlight')
+def get_active_flight():
+    """
+    It returns the active flight for Captain Olsen at the current date, if any.
+    """
+    flight = flightSeeker.searchForActiveFlightFromFlightplan()
+    if(flight == None):
+        return jsonify("")
+    return jsonify(flight[0])
+
+
+
 @app.after_request
 def add_cors_headers(response):
     response.headers.add("Access-Control-Allow-Origin", "*")
@@ -334,24 +275,11 @@ def add_cors_headers(response):
 
 
 
-# @app.route('/getActiveFlight')
-# def get_active_flight():
-#     """
-#     It returns the active flight for Captain Olsen at the current date, if any.
-#     """
-#     # plan = flightplan.getTodaysFlightplan()
-#     # flight = flightSeeker.searchForActiveFlightFromFlightplan(plan)
-#     if(flight == None):
-#         return "No active flight found."
-#     return flight
-
-
-
 ########## Server ##########
 
 if __name__ == '__main__':
     roster = Roster(devFilePath)
     flightplan = Flightplan(roster=roster)
-    flightSeeker = FlightSeeker(flightplan=flightplan)
+    flightSeeker = FlightSeeker(flightplan=flightplan.getTodaysFlightplan())
 
     app.run(port=6969, debug=True)

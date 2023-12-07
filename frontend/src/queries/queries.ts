@@ -5,3 +5,6 @@ export const GET_DATE = () =>
 
 export const GET_FLIGHTPLAN = () =>
 	fetch(baseURL + "/getTodaysFlightplan").then((res) => res.json());
+
+export const GET_ACTIVE_FLIGHT = () =>
+	fetch(baseURL + "/getActiveFlight").then((res) => res.json());
