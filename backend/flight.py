@@ -4,20 +4,29 @@ import datetime
 from pandas import pandas, DataFrame
 from flask import Flask
 from FlightRadar24 import FlightRadar24API, Flight
+from flask import Flask, jsonify
+from flask_cors import CORS
 
 
 
-########## Setup ##########
+########## Variables ##########
 
-
-app = Flask(__name__)
-api = FlightRadar24API()
 defaultAirlineICAO = "SAS"
 filePath = './data/roster.csv'
 
 # Developmentvariables
 # devFlightNumber = "SK864"
 devFilePath = './data/exampleRoster.csv'
+
+
+
+########## Setup ##########
+
+
+
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})  # Enable CORS for all routes
+api = FlightRadar24API()
 
 
 
@@ -282,7 +291,6 @@ class Flight:
 
 
 
-
 ########## Endpoints ##########
 
 
@@ -294,7 +302,7 @@ def get_todays_date():
 
     Example: 04DEC2023
     """
-    return getTodaysDate()
+    return jsonify(getTodaysDate())
 
 
 
@@ -313,33 +321,37 @@ def get_todays_flightplan():
     """
     It returns a list of flights for Captain Olsen at the current date, if any.
     """
-    plan = flightplan.getTodaysFlightplan()
-    if(plan.empty):
-        return 'No flights today.'
-    return plan.to_json(orient='records')
+    return flightplan.getTodaysFlightplan().to_json(orient='records')
 
 
 
-@app.route('/getActiveFlight')
-def get_active_flight():
-    """
-    It returns the active flight for Captain Olsen at the current date, if any.
-    """
-    # plan = flightplan.getTodaysFlightplan()
-    # flight = flightSeeker.searchForActiveFlightFromFlightplan(plan)
-    if(flight == None):
-        return "No active flight found."
-    return flight
+@app.after_request
+def add_cors_headers(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
+    return response
+
+
+
+# @app.route('/getActiveFlight')
+# def get_active_flight():
+#     """
+#     It returns the active flight for Captain Olsen at the current date, if any.
+#     """
+#     # plan = flightplan.getTodaysFlightplan()
+#     # flight = flightSeeker.searchForActiveFlightFromFlightplan(plan)
+#     if(flight == None):
+#         return "No active flight found."
+#     return flight
 
 
 
 ########## Server ##########
 
-
-
-roster = Roster()
-flightplan = Flightplan(roster=roster)
-flightSeeker = FlightSeeker(flightplan=flightplan)
-
 if __name__ == '__main__':
-    app.run(port=5000)
+    roster = Roster(devFilePath)
+    flightplan = Flightplan(roster=roster)
+    flightSeeker = FlightSeeker(flightplan=flightplan)
+
+    app.run(port=6969, debug=True)

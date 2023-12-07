@@ -8,3 +8,13 @@
 	overflow: hidden;
 	background-color: #676767;
 }
+
+.leftbar-container .date {
+	text-align: center;
+}
+
+@media (prefers-color-scheme: light) {
+	.leftbar-container {
+		background-color: #fbfbfb;
+	}
+}
