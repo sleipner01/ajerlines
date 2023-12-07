@@ -1,0 +1,10 @@
+.leftbar-container {
+	left: 0;
+	top: 0;
+	bottom: 0;
+	position: absolute;
+	min-width: 400px;
+	min-height: 100svh;
+	overflow: hidden;
+	background-color: #676767;
+}
